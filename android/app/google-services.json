@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "447592928913",
+    "firebase_url": "https://renewable-energy-project-1c67f-default-rtdb.firebaseio.com",
+    "project_id": "renewable-energy-project-1c67f",
+    "storage_bucket": "renewable-energy-project-1c67f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:447592928913:android:03063d470363aa2ca45130",
+        "android_client_info": {
+          "package_name": "com.example.zelestra"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3D7AshRMxa6I9Y9oiFOlM_uBqrr9iuMA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

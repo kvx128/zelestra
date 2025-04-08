@@ -1,0 +1,23 @@
+{
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "renewable-energy-project-1c67f",
+                    "appId": "1:447592928913:android:03063d470363aa2ca45130",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "renewable-energy-project-1c67f",
+                    "configurations": {
+                        "android": "1:447592928913:android:03063d470363aa2ca45130",
+                        "ios": "1:447592928913:ios:a3745fc6333f961aa45130",
+                        "web": "1:447592928913:web:16524652e34715f6a45130"
+                    }
+                }
+            }
+        }
+    }
+}

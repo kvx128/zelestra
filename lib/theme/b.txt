@@ -1,0 +1,225 @@
+Hey here's my code "
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  String searchQuery = '';
+  List<DocumentSnapshot> allDocs = [];
+  bool isLoading = false;
+  bool hasMore = true;
+  DocumentSnapshot? lastDoc;
+  final int limit = 30;
+  final ScrollController _scrollController = ScrollController();
+  String? sortKey;
+  bool ascending = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchMore();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 200 &&
+          !isLoading &&
+          hasMore) {
+        fetchMore();
+      }
+    });
+  }
+
+  Future<void> fetchMore() async {
+    if (isLoading || !hasMore) return;
+    setState(() => isLoading = true);
+
+    Query query = FirebaseFirestore.instance
+        .collection('project')
+        .orderBy(FieldPath.documentId)
+        .limit(limit);
+    if (lastDoc != null) {
+      query = query.startAfterDocument(lastDoc!);
+    }
+
+    final snapshot = await query.get();
+    if (snapshot.docs.isNotEmpty) {
+      lastDoc = snapshot.docs.last;
+      allDocs.addAll(snapshot.docs);
+    }
+    if (snapshot.docs.length < limit) {
+      hasMore = false;
+    }
+
+    setState(() => isLoading = false);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void sortBy(String key) {
+    setState(() {
+      sortKey = key;
+      ascending = !ascending;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    List<DocumentSnapshot> filteredDocs = allDocs.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      final city =
+          data['City_lowest_administrative_level']?.toString().toLowerCase() ??
+              '';
+      final country = data['Country']?.toString().toLowerCase() ?? '';
+      return city.contains(searchQuery) || country.contains(searchQuery);
+    }).toList();
+
+    if (sortKey != null) {
+      filteredDocs.sort((a, b) {
+        final aVal = (a.data() as Map<String, dynamic>)[sortKey];
+        final bVal = (b.data() as Map<String, dynamic>)[sortKey];
+        return ascending
+            ? aVal.toString().compareTo(bVal.toString())
+            : bVal.toString().compareTo(aVal.toString());
+      });
+    }
+
+    final columnKeys = filteredDocs.isNotEmpty
+        ? (filteredDocs.first.data() as Map<String, dynamic>).keys.toList()
+        : [];
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
+      appBar: AppBar(
+        title: const Text('Renewable Projects Dashboard'),
+        centerTitle: true,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        elevation: 2,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              decoration: InputDecoration(
+                labelText: 'Search by City or Country',
+                prefixIcon: const Icon(Icons.search),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value.toLowerCase();
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: columnKeys.length * 150,
+                    child: Column(
+                      children: [
+                        Row(
+                          children: columnKeys
+                              .map((key) => InkWell(
+                                    onTap: () => sortBy(key),
+                                    child: Container(
+                                      width: 150,
+                                      padding: const EdgeInsets.all(8.0),
+                                      decoration: BoxDecoration(
+                                        color: Colors.purple.shade200,
+                                        border: Border.all(
+                                            color: Colors.grey.shade300),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              key,
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (sortKey == key)
+                                            Icon(
+                                                ascending
+                                                    ? Icons.arrow_upward
+                                                    : Icons.arrow_downward,
+                                                size: 16),
+                                        ],
+                                      ),
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                        const Divider(height: 1),
+                        Expanded(
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            itemCount: filteredDocs.length + (hasMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == filteredDocs.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 10),
+                                  child: Center(
+                                      child: CircularProgressIndicator()),
+                                );
+                              }
+                              final data = filteredDocs[index].data()
+                                  as Map<String, dynamic>;
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: columnKeys
+                                    .map((key) => Container(
+                                          width: 150,
+                                          padding: const EdgeInsets.all(8.0),
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                                color: Colors.grey.shade300),
+                                          ),
+                                          child: Text(
+                                            data[key]?.toString() ?? '',
+                                            style:
+                                                const TextStyle(fontSize: 14),
+                                            overflow: TextOverflow.ellipsis,
+                                            softWrap: true,
+                                          ),
+                                        ))
+                                    .toList(),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+" and I'm facing one issue while on clicking the column names for sorting they disappear. can the [roject name country year and capacity be hardcoded to be fetch first:
+
+Here are my column names:
+"Power_station	Local_spelling	OpenCSP_ID	Country	Region	Status	Capacity_MW	Expected_generation_CSP_GWh_per_yr	Expected_generation_hybrid_GWh_per_yr	Capacity_factor_CSP	Technology	Hybridisation_capacity	Hybridisation_capacity_factor	Hybridisation_ratio	Hybridisation_comment	Year_construction_start	Year_operational	State_highest_administrative_level	Province_County_medium_administrative_level	City_lowest_administrative_level	Location_coordinates	DNI_kWh_per_m2_per_yr	Total_cost_million_currency_non_deflated_CSP	Hybrid_Total_cost_million_currency_non_deflated	Cost_currency	Currency_year	Total_cost_million_USD2020	Specific_cost_USD2020_per_kW	LCOE_5_25_USD2020_per_kWh	Remuneration_currency_per_kWh	Support_currency	Cost_year_remuneration	Remuneration_USD2020_per_kWh_deflated	PPA_or_support_duration_yr	Support_scheme_type	Policy_support_scheme	Concessional_funding_other_support	Land_area_whole_station_not_solar_field_km2	Developer	Developer_country	First_owner	First_operator	Electricity_generation_offtaker	EPC	EPC_country	HTF_manufacturer	HTF_manufacturer_country	HTF_medium_or_product	HTF_category	Steam_turbine_manufacturer	Steam_turbine_manufacturer_country	Turbine_model	Turbine_thermodynamic_cycle	Power_cycle_pressure_bar	Turbine_efficiency_percent	Heat_exchanger_manufacturer	Heat_exchanger_manufacturer_country	Cooling_type	Energy_storage_type	Storage_capacity_hours	Storage_description	TES_engineering_company	TES_engineering_company_country	Solar_receiver_manufacturer	Solar_receiver_country	Solar_receiver_model	Tower_height_m	Number_of_heat_collecting_elements_for_trough_and_fresnel	Receiver_inlet_temperature_Celsius	Receiver_outlet_temperature_Celsius	SCA_or_heliostat_manufacturer	SCA_or_heliostat_manufacturer_country	SCA_or_heliostat_engineering_or_IP_owner_company	SCA_or_heliostat_engineering_or_IP_owner_company_country	SCA_or_heliostat_model	Reflector_mirror_manufacturer	Reflector_mirror_manufacturer_country	Reflector_model	Solar_mirror_area_m2	Solar_multiple	Number_of_heliostats_or_dishes	Mirror_area_per_heliostat_or_dish	Fresnel_line_width_m	Fresnel_number_of_lines	Fresnel_line_length_m	Trough_solar_collector_area_m2	Trough_SCA_length_m	Trough_number_of_loops	Trough_number_of_modules_per_SCA	Trough_number_of_SCA	Trough_number_of_SCA_per_loop	Construction_jobs_years	Annual_operations_jobs	Additional_sources_relative_to_2019_version_of_cspGURU_and_NRELSolarPACES_as_of_31_January_2020		"
